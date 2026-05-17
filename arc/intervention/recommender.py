@@ -83,6 +83,7 @@ class EffectivenessTracker:
         counts = self._outcomes.get(key, {"successes": 0, "total": 0})
 
         prior = self._priors.get(action.name, self._default_prior)
+        k = 10.0  # Bayesian pseudo-count
         alpha = prior * k + counts["successes"]
         beta = (1 - prior) * k + counts["total"] - counts["successes"]
 
@@ -94,7 +95,9 @@ class EffectivenessTracker:
 
     def to_dict(self) -> Dict[str, Any]:
         return {
-            "outcomes": dict(self._outcomes),
+            # Use "|" as separator so names containing "_" (e.g. REDUCE_LR,
+            # VANISHING_GRADIENTS) round-trip correctly through from_dict().
+            "outcomes": {f"{k[0]}|{k[1]}": v for k, v in self._outcomes.items()},
             "priors": self._priors,
         }
 
@@ -103,7 +106,9 @@ class EffectivenessTracker:
         tracker = cls()
         tracker._outcomes = defaultdict(
             lambda: {"successes": 0, "total": 0},
-            {tuple(k.split("_")): v for k, v in d.get("outcomes", {}).items()}
+            # Split on "|" so action/failure-mode names that contain "_"
+            # (e.g. "REDUCE_LR|VANISHING_GRADIENTS") are parsed correctly.
+            {tuple(k.split("|")): v for k, v in d.get("outcomes", {}).items()}
         )
         tracker._priors = d.get("priors", {})
         return tracker

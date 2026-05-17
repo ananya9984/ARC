@@ -263,8 +263,6 @@ class FailurePredictor:
             risk_level=risk_level,
         )
 
-        return sequence
-
     def _extract_features(self) -> np.ndarray:
 
         signal_histories = {}

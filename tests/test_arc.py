@@ -133,17 +133,21 @@ class TestWeightRollback:
         # Save initial weights
         initial_weights = simple_model[0].weight.data.clone()
         
-        # Modify weights
+        # Save checkpoint with clean weights
+        rollback.step(torch.tensor(1.0))
+        
+        # Modify weights to simulate corruption right before failure
         with torch.no_grad():
             simple_model[0].weight.data.fill_(999.0)
-        
+            
         # Trigger rollback with high loss
-        rollback.step(torch.tensor(1.0))  # Save checkpoint
         action = rollback.step(torch.tensor(100.0))  # Trigger rollback
         
         if action.rolled_back:
-            # Weights should be restored
+            # Weights must no longer be the corrupted value…
             assert not torch.allclose(simple_model[0].weight.data, torch.tensor(999.0))
+            # …and must be back to the clean checkpoint values.
+            assert torch.allclose(simple_model[0].weight.data, initial_weights, atol=1e-5)
 
 
 # =============================================================================
