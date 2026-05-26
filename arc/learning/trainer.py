@@ -18,6 +18,8 @@
 
 from typing import Dict, Any, Optional, List, Tuple, Callable
 from dataclasses import dataclass
+import pickle
+import warnings
 import os
 import json
 import numpy as np
@@ -349,7 +351,16 @@ class MetaModelTrainer:
         torch.save(checkpoint, os.path.join(checkpoint_dir, filename))
 
     def load_checkpoint(self, path: str) -> None:
-        checkpoint = torch.load(path, map_location=self.device)
+        try:
+            checkpoint = torch.load(path, map_location=self.device, weights_only=True)
+        except (pickle.UnpicklingError, RuntimeError):
+            warnings.warn(
+                f"Loading {path} with weights_only=False. "
+                "Only do this for checkpoints you produced yourself. "
+                "See SECURITY.md for the checkpoint trust boundary.",
+                stacklevel=2,
+            )
+            checkpoint = torch.load(path, map_location=self.device, weights_only=False)
         self.model.load_state_dict(checkpoint["model_state_dict"])
         self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
 

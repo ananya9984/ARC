@@ -21,10 +21,12 @@ import torch.nn as nn
 import os
 import tempfile
 import shutil
+from arc.config import default_checkpoint_dir
 from typing import Optional, Dict, Any, List, Tuple, Union
 from dataclasses import dataclass, field
 from collections import deque
 from enum import Enum, auto
+import pickle
 import warnings
 import gc
 import struct
@@ -52,7 +54,7 @@ class AdaptiveCheckpointConfig:
 
     quantize_optimizer: bool = True
 
-    disk_checkpoint_dir: str = "/tmp/arc_checkpoints"
+    disk_checkpoint_dir: str = default_checkpoint_dir("checkpoints")
     max_disk_checkpoints: int = 3
     compress_disk: bool = False
 
@@ -382,7 +384,17 @@ class AdaptiveCheckpointer:
         checkpoint = self.checkpoints[checkpoint_idx]
 
         if isinstance(checkpoint, dict) and 'path' in checkpoint:
-            checkpoint = torch.load(checkpoint['path'])
+            _ckpt_path = checkpoint['path']
+            try:
+                checkpoint = torch.load(_ckpt_path, weights_only=True)
+            except (pickle.UnpicklingError, RuntimeError):
+                warnings.warn(
+                    f"Loading {_ckpt_path} with weights_only=False. "
+                    "Only do this for checkpoints you produced yourself. "
+                    "See SECURITY.md for the checkpoint trust boundary.",
+                    stacklevel=2,
+                )
+                checkpoint = torch.load(_ckpt_path, weights_only=False)
 
         if checkpoint.get('is_incremental', False):
             checkpoint = self._resolve_incremental(checkpoint)

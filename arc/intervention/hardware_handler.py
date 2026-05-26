@@ -24,6 +24,7 @@ import time
 import traceback
 from typing import Optional, Dict, Any, Callable, List, Tuple, Union
 from dataclasses import dataclass, field
+from arc.config import default_checkpoint_dir
 from enum import Enum, auto
 import warnings
 import functools
@@ -48,7 +49,7 @@ class HardwareConfig:
     allow_device_switch: bool = True
 
     checkpoint_to_disk_on_oom: bool = True
-    checkpoint_dir: str = "/tmp/arc_checkpoints"
+    checkpoint_dir: str = default_checkpoint_dir("checkpoints")
     remote_checkpoint_url: Optional[str] = None
 
     ddp_timeout_seconds: float = 300.0

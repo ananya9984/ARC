@@ -21,6 +21,20 @@ from enum import Enum, auto
 from typing import List, Optional, Dict, Any
 import json
 
+from pathlib import Path
+
+
+def default_checkpoint_dir(subdir: str = "checkpoints") -> str:
+    """Per-user default checkpoint directory.
+
+    Resolves to ``~/.cache/arc/<subdir>`` on every platform. Used as the
+    default for checkpoint storage so that ARC does not write into
+    world-writable ``/tmp/`` on shared systems (where another local user
+    can write or symlink files that ARC would later deserialize via
+    ``torch.load``). See SECURITY.md for the full trust boundary.
+    """
+    return str(Path.home() / ".cache" / "arc" / subdir)
+
 class FailureMode(Enum):
 
     DIVERGENCE = auto()

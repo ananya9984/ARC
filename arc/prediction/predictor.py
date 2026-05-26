@@ -16,6 +16,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with ARC. If not, see <https://www.gnu.org/licenses/>.
 
+import pickle
+import warnings
 from dataclasses import dataclass, field
 from typing import Dict, Any, Optional, List, Tuple
 import numpy as np
@@ -143,7 +145,16 @@ class FailurePredictor:
 
     def _load_model(self, path: str) -> TrainingDynamicsPredictor:
 
-        checkpoint = torch.load(path, map_location=self.device)
+        try:
+            checkpoint = torch.load(path, map_location=self.device, weights_only=True)
+        except (pickle.UnpicklingError, RuntimeError):
+            warnings.warn(
+                f"Loading {path} with weights_only=False. "
+                "Only do this for checkpoints you produced yourself. "
+                "See SECURITY.md for the checkpoint trust boundary.",
+                stacklevel=2,
+            )
+            checkpoint = torch.load(path, map_location=self.device, weights_only=False)
 
         state_dict = checkpoint.get("model_state_dict", checkpoint)
         n_features = state_dict["input_proj.0.weight"].shape[1]
