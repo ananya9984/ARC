@@ -4,40 +4,49 @@
 
 ### Autonomous Recovery Controller for Neural Network Training
 
-_Real-time fault tolerance that monitors, predicts, and recovers from training failures — automatically._
+_Real-time fault tolerance that monitors, predicts, and recovers from training failures - automatically._
+
+<br>
 
 [![PyPI](https://img.shields.io/badge/PyPI-arc--training-blue?style=for-the-badge&logo=pypi&logoColor=white)](https://pypi.org/project/arc-training)
 [![Python](https://img.shields.io/badge/Python-3.8+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org)
 [![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)](https://pytorch.org)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-green?style=for-the-badge)](https://www.gnu.org/licenses/agpl-3.0)
+[![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/E6UvPWC8DW)
 
----
+<br>
 
 **3 lines of code** · **<10% overhead (250K+ params)** · **100% recovery on induced failures** · **100K–117M parameters validated**
 
-[Quick Start](#quick-start) · [Architecture](#architecture) · [Benchmarks](#benchmarks)
+<br>
+
+[Quick Start](#quick-start) •
+[Architecture](#architecture) •
+[Benchmarks](#benchmarks) •
+[Community](#community) •
+[Collaboration Guidelines](#collaboration-guidelines)
 
 </div>
 
 ---
 
-## The Problem
+# The Problem
 
 Training neural networks is fragile. A single NaN gradient, an OOM spike, or an exploding loss at hour 47 of a 48-hour run can destroy days of compute. Engineers waste enormous time adding manual checkpointing, writing recovery scripts, and babysitting long runs.
 
 **ARC eliminates this entirely.** It wraps your training loop with an autonomous controller that:
 
-1. **Monitors** — Tracks multi-signal telemetry (loss trajectory, gradient norms, weight health, optimizer state integrity)
-2. **Predicts** — Uses signal-based classifiers (97.5% accuracy, 100% precision, zero false positives) to detect failures before they become irreversible
-3. **Recovers** — Automatically rolls back to the last healthy checkpoint and applies corrective measures (LR reduction, weight perturbation)
+1. **Monitors** - Tracks multi-signal telemetry (loss trajectory, gradient norms, weight health, optimizer state integrity)
+2. **Predicts** - Uses signal-based classifiers to detect failures before they become irreversible
+3. **Recovers** - Automatically rolls back to the last healthy checkpoint and applies corrective measures
 
 You keep training. ARC keeps it alive.
 
 ---
 
-## Quick Start
+# Quick Start
 
-### Installation
+## Installation
 
 ```bash
 pip install arc-training
@@ -51,7 +60,9 @@ cd ARC
 pip install -e .
 ```
 
-### 3-Line Integration
+---
+
+## 3-Line Integration
 
 ```python
 from arc import Arc
@@ -60,91 +71,69 @@ controller = Arc(model, optimizer)
 
 for batch in dataloader:
     loss = model(batch)
-    action = controller.step(loss)       # monitor + protect
+    action = controller.step(loss)
 
-    if not action.rolled_back:           # normal path
+    if not action.rolled_back:
         loss.backward()
         optimizer.step()
 ```
 
-That's it. ARC handles NaN detection, gradient explosion recovery, checkpoint management, and learning rate adjustment — all behind `controller.step()`.
+ARC automatically handles:
+
+- NaN detection
+- Gradient explosion recovery
+- Checkpoint management
+- Learning rate correction
+- Automatic rollback recovery
 
 ---
 
-## Architecture
+# Community
+
+<div align="center">
+
+## Join the ARC Community
+
+[![Discord](https://img.shields.io/badge/Join%20the%20ARC%20Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/E6UvPWC8DW)
+
+</div>
+
+The Discord server is the primary hub for:
+
+- Contributor discussions
+- Collaboration
+- Development updates
+- Research discussions
+- Feature proposals
+- Bug reporting and debugging support
+
+We welcome contributors, researchers, students, and developers of all experience levels.
+
+---
+
+# Architecture
 
 ARC is a modular multi-signal monitoring system:
 
-```
+```text
 arc/
 ├── core/            Self-healing engine with rollback + LR reduction
-├── signals/         Multi-signal collectors (gradient, loss, weight, optimizer state)
-├── features/        Feature extraction, normalization, and buffering
-├── prediction/      Signal-based failure prediction (logistic regression + MLP)
-├── intervention/    Recovery strategies (LR reduction, gradient clipping, weight perturbation)
-├── checkpointing/   Checkpoint management with circular buffer
-├── introspection/   Fisher Information, Hessian approximation, loss landscape analysis
-├── physics/         Lyapunov stability analysis, FFT oscillation detection
-├── uncertainty/     Conformal prediction for calibrated stability assessment
-└── evaluation/      Benchmarking and validation harness
-```
-
-### Signal Pipeline
-
-```
-Training Step
-     │
-     ▼
-┌─────────────────────────────────────────────────────────────┐
-│  Signal Collectors                                          │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌───────────────┐  │
-│  │ Gradient  │ │ Loss     │ │ Weight   │ │ Optimizer     │  │
-│  │ Norm/Ent. │ │ Trend/Var│ │ Norm/NaN │ │ State Norm    │  │
-│  └─────┬────┘ └─────┬────┘ └─────┬────┘ └──────┬────────┘  │
-│        └──────┬──────┴──────┬─────┘             │           │
-│               ▼             ▼                   ▼           │
-│         Feature Extractor (12 features)                     │
-│               │                                             │
-│               ▼                                             │
-│    ┌─────────────────────┐    ┌──────────────────────────┐  │
-│    │  Heuristic Detector │    │  MLP Predictor           │  │
-│    │  (instant response) │    │  (97.5% acc, 0 FP)       │  │
-│    └─────────┬───────────┘    └────────────┬─────────────┘  │
-│              └──────────┬─────────────────┘                 │
-│                         ▼                                   │
-│              Risk Assessment + Recovery Decision            │
-└─────────────────────────┬───────────────────────────────────┘
-                          │
-              ┌───────────┴───────────┐
-              │   HEALTHY             │──── Continue training
-              │   WARNING             │──── Increase monitoring, prepare checkpoint
-              │   FAILURE             │──── Rollback to checkpoint + corrective action
-              └───────────────────────┘
+├── signals/         Multi-signal collectors
+├── features/        Feature extraction and buffering
+├── prediction/      Failure prediction models
+├── intervention/    Recovery strategies
+├── checkpointing/   Checkpoint management
+├── introspection/   Hessian + Fisher analysis
+├── physics/         Stability analysis
+├── uncertainty/     Conformal prediction
+└── evaluation/      Benchmarking harness
 ```
 
 ---
 
-## Failure Coverage
+# Benchmarks
 
-| Category    | Failure Type          | Detection | Recovery                     |
-| ----------- | --------------------- | --------- | ---------------------------- |
-| **Numeric** | NaN / Inf Loss        | Instant   | Rollback + LR reduction      |
-| **Numeric** | Loss Explosion        | Instant   | Rollback + LR reduction      |
-| **Numeric** | Gradient Explosion    | Instant   | Rollback + gradient clipping |
-| **Numeric** | Weight Corruption     | Instant   | Rollback from checkpoint     |
-| **Silent**  | Optimizer State Reset | Detected  | Rollback + state restoration |
-| **Silent**  | Silent Weight Drift   | Detected  | Alert + optional rollback    |
-| **Silent**  | LR Spike              | Instant   | Rollback + LR correction     |
-
----
-
-## Benchmarks
-
-> **All numbers below are from reproducible experiment scripts with fixed seeds.**
-
-### Baseline Comparison (25 scenarios)
-
-4 methods × 5 failure types × 5 seeds. Script: `experiments/baseline_comparison.py`
+## Baseline Comparison
 
 | Method            | Detection | Recovery | False Positives |
 | :---------------- | :-------: | :------: | :-------------: |
@@ -153,42 +142,18 @@ Training Step
 | Loss-Only Monitor |   80.0%   |  80.0%   |        0        |
 | **Full ARC**      | **100%**  | **100%** |      **0**      |
 
-### Failure Prediction (200 scenarios)
+---
 
-4 architectures × 5 failure types × 5 seeds × 2 labels, 5-fold CV. Script: `experiments/prediction_200_v2.py`
+## Failure Prediction
 
-| Classifier         |     Accuracy     | Precision |  Recall   |        F1        |
-| :----------------- | :--------------: | :-------: | :-------: | :--------------: |
-| Logistic Reg (12f) |   95.5% ± 1.9%   |   100%    |   91.0%   |   0.953 ± 2.6%   |
-| **MLP (12f)**      | **97.5% ± 2.2%** | **100%**  | **95.0%** | **0.974 ± 2.8%** |
+| Classifier          | Accuracy | Precision | Recall | F1 Score |
+| :------------------ | :------: | :-------: | :----: | :------: |
+| Logistic Regression |  95.5%   |   100%    | 91.0%  |   0.953  |
+| **MLP Predictor**   | **97.5%**| **100%**  | **95%**| **0.974**|
 
-### Ablation Study (35 scenarios)
+---
 
-7 failure types × 5 seeds. Script: `experiments/ablation_experiment.py`
-
-| Configuration             | Detection | Δ from Full |
-| :------------------------ | :-------: | :---------: |
-| Full ARC (all components) |   85.7%   |     ---     |
-| − Weight Health           |   85.7%   |    0.0%     |
-| − Gradient Monitoring     |   85.7%   |    0.0%     |
-| − Loss Monitoring         |   85.7%   |    0.0%     |
-| − Optimizer State         |   71.4%   |   −14.3%    |
-| Loss Only (baseline)      |   71.4%   |   −14.3%    |
-
-> **Defense in depth**: Weight/gradient/loss provide redundant coverage (any one catches most failures). Optimizer state monitoring is uniquely valuable for silent failures.
-
-### Overhead (measured, CPU)
-
-Script: `experiments/overhead_measurement.py`
-
-| Component           | Time (ms) | % of ARC Total |
-| :------------------ | :-------: | :------------: |
-| Gradient Norm       |   0.12    |      9.0%      |
-| Weight Statistics   |   1.06    |     76.9%      |
-| Loss Analysis       |   0.01    |      0.6%      |
-| Checkpoint (amort.) |   0.13    |      9.6%      |
-| Forecasting         |   0.06    |      4.1%      |
-| **Total ARC**       | **1.38**  |    **100%**    |
+## Overhead
 
 | Model Scale | Parameters | ARC Overhead | Relative |
 | :---------- | :--------: | :----------: | :------: |
@@ -196,50 +161,197 @@ Script: `experiments/overhead_measurement.py`
 | Medium CNN  |    288K    |   1.38 ms    |   ~10%   |
 | Large CNN   |    2.5M    |   7.04 ms    |  ~9.5%   |
 
-### Large Model Stress Test
+---
 
-Script: `experiments/validate_claims_phase2.py`
+# Collaboration Guidelines
 
-| Model        | Params | Failure Type     | ARC Recovery | Rollbacks |
-| :----------- | :----- | :--------------- | :----------: | :-------: |
-| NanoGPT      | 10M    | LR Spike (50×)   |      ✓       |     2     |
-| ResNet-50    | 25.6M  | Loss Singularity |      ✓       |     1     |
-| GPT-2 Small  | 50M    | NaN Bomb         |      ✓       |     4     |
-| SD-UNet      | 60M    | Gradient Attack  |      ✓       |     4     |
-| ViT-Base     | 86M    | Inf Nuke         |      ✓       |     1     |
-| GPT-2 Medium | 117M   | NaN Bomb         |      ✓       |     3     |
+We welcome open-source contributions, architecture improvements, benchmarking extensions, research discussions and documentation enhancements.
 
 ---
 
-## Theoretical Foundation
+## Contribution Workflow
 
-ARC integrates six mathematical frameworks, each experimentally validated:
+### 1. Fork the Repository
 
-| Framework                        | Purpose                                             | Validation                                               |
-| :------------------------------- | :-------------------------------------------------- | :------------------------------------------------------- |
-| **Fisher Information**           | Parameter importance weighting for recovery         | 11.5× separation ratio (important vs unimportant params) |
-| **Lyapunov Stability**           | Online stability estimation from parameter velocity | 10× higher exponent under instability                    |
-| **FFT Oscillation Detection**    | Periodic behaviour detection in training dynamics   | 6.9× power ratio at oscillation frequency                |
-| **Conformal Prediction**         | Distribution-free coverage guarantees for stability | ≥99% empirical coverage at all target levels             |
-| **Elastic Weight Consolidation** | Knowledge preservation during recovery              | 0.4% lower post-recovery loss                            |
-| **Loss Landscape Analysis**      | Sharpness-based instability prediction              | 12.2× higher sharpness before failure                    |
+```bash
+git clone https://github.com/a-kaushik2209/ARC.git
+cd ARC
+```
 
 ---
 
-## Known Limitations
+### 2. Open or Discuss an Issue First
 
-ARC is honest about what it cannot do:
+Before starting implementation work, contributors are expected to:
 
-- **CPU only (validated)**: All experiments ran on CPU. GPU overhead expected to be lower but not yet measured
-- **Scale ceiling**: Validated up to 117M parameters. Behaviour above this is not empirically confirmed
-- **Synthetic failures only**: All test failures were programmatically injected. Organically occurring failures are untested
-- **First 10 steps**: No checkpoint exists yet — failures before the first save are unrecoverable
-- **Data problems**: ARC cannot detect data corruption, label noise, or adversarial poisoning
-- **Non-PyTorch**: Only PyTorch is supported
+- Open a new issue describing the proposed feature, improvement or bug fix
+- Participate in issue discussions if clarification is required
+- Wait for the issue to be assigned before beginning work
+
+Pull requests raised without prior discussion or assignment may be closed if the contribution does not align with the current roadmap, architecture direction or active development priorities.
+
+This process helps avoid duplicated work and keeps contributions coordinated across the project.
 
 ---
 
-## Citation
+### 3. Create a Development Branch
+
+```bash
+git checkout -b feature/your-feature-name
+```
+
+Use clear and descriptive branch names.
+
+Examples:
+
+```text
+feature/failure-prediction-upgrade
+fix/checkpoint-memory-leak
+docs/installation-guide-update
+```
+
+---
+
+### 4. Install Dependencies
+
+```bash
+pip install -e .
+```
+
+Install all required dependencies before starting development to ensure local testing consistency.
+
+---
+
+### 5. Make Your Changes
+
+Please keep contributions:
+
+- Modular
+- Well documented
+- Consistent with the existing architecture
+- Focused on a single feature or fix
+
+For larger changes, keep commits logically separated wherever possible.
+
+---
+
+### 6. Commit Clearly
+
+```bash
+git commit -m "Add: short feature description"
+```
+
+Prefer concise and meaningful commit messages.
+
+Examples:
+
+```text
+Add: gradient anomaly recovery module
+Fix: checkpoint rollback edge case
+Docs: improve installation instructions
+```
+
+---
+
+### 7. Push Your Branch
+
+```bash
+git push origin feature/your-feature-name
+```
+
+Ensure your branch is up to date with the latest repository changes before opening a pull request.
+
+---
+
+### 8. Open a Pull Request
+
+Please include:
+
+- A clear explanation of the contribution
+- Motivation behind the change
+- Relevant benchmarks, logs or screenshots if applicable
+- References to the related issue
+
+PRs should remain focused and avoid unrelated modifications.
+
+---
+
+## Pull Request Standards
+
+To maintain repository quality:
+
+- Keep PRs focused and minimal
+- Avoid unrelated refactors
+- Ensure code executes correctly before submission
+- Add comments and docstrings where appropriate
+- Maintain compatibility with the existing architecture
+- Discuss major architectural changes before implementation
+
+Submissions that significantly change project direction without prior discussion may be deferred or closed.
+
+---
+
+## Issue Reporting
+
+When opening an issue, include:
+
+- Clear problem description
+- Expected behaviour
+- Steps to reproduce
+- Relevant logs or screenshots
+- Environment details if applicable
+
+Bug reports with reproducible examples are highly appreciated.
+
+---
+
+## Development Principles
+
+ARC prioritizes:
+
+- Reliability over complexity
+- Measured experimental validation
+- Transparent benchmarking
+- Modular system design
+- Honest reporting of limitations
+
+Contributions aligned with these principles are strongly encouraged.
+
+---
+
+## Contributor Communication
+
+<div align="center">
+
+[![Discord](https://img.shields.io/badge/ARC%20Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/E6UvPWC8DW)
+
+</div>
+
+The Discord server is the primary hub for:
+
+- Contributor discussions
+- Collaboration
+- Development updates
+- Research discussions
+- Feature proposals
+- Bug reporting and debugging support
+
+Contributors are encouraged to participate in discussions before beginning larger implementations or architectural changes.
+
+---
+
+# Known Limitations
+
+- CPU-only validation currently
+- Validated up to 117M parameters
+- Synthetic failures only
+- First checkpoint gap
+- No data corruption detection
+- PyTorch-only support
+
+---
+
+# Citation
 
 ```bibtex
 @article{kaushik2026arc,
@@ -254,7 +366,9 @@ ARC is honest about what it cannot do:
 
 <div align="center">
 
-**AGPL-3.0 License** · Copyright (c) 2026 Aryan Kaushik
+### AGPL-3.0 License
+
+Copyright (c) 2026 Aryan Kaushik
 
 _Built to make neural network training unkillable._
 

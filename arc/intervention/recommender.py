@@ -83,6 +83,7 @@ class EffectivenessTracker:
         counts = self._outcomes.get(key, {"successes": 0, "total": 0})
 
         prior = self._priors.get(action.name, self._default_prior)
+        k = 10.0  # Bayesian pseudo-count
         alpha = prior * k + counts["successes"]
         beta = (1 - prior) * k + counts["total"] - counts["successes"]
 
@@ -93,17 +94,44 @@ class EffectivenessTracker:
         return effectiveness, confidence
 
     def to_dict(self) -> Dict[str, Any]:
+        # Use "|" as separator so action/mode names containing "_" round-trip
+        # correctly through JSON serialization and from_dict() restoration.
         return {
-            "outcomes": dict(self._outcomes),
+            "outcomes": {"|".join(k): v for k, v in self._outcomes.items()},
             "priors": self._priors,
         }
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> 'EffectivenessTracker':
         tracker = cls()
+        restored = {}
+        valid_actions = {a.name for a in InterventionAction}
+        valid_modes = {m.name for m in FailureMode}
+        valid_modes.add("UNKNOWN")
+        
+        for k, v in d.get("outcomes", {}).items():
+            parts = k.split("|")
+            if len(parts) == 2:
+                # Correctly formed key — restore as tuple
+                restored[tuple(parts)] = v
+            else:
+                # Fallback for legacy keys joined by "_"
+                matched = False
+                for action in valid_actions:
+                    for mode in valid_modes:
+                        if k == f"{action}_{mode}":
+                            restored[(action, mode)] = v
+                            matched = True
+                            break
+                    if matched:
+                        break
+                
+                if not matched:
+                    # Malformed or un-parseable legacy key
+                    pass
         tracker._outcomes = defaultdict(
             lambda: {"successes": 0, "total": 0},
-            {tuple(k.split("_")): v for k, v in d.get("outcomes", {}).items()}
+            restored,
         )
         tracker._priors = d.get("priors", {})
         return tracker

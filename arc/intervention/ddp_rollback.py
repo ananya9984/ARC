@@ -21,6 +21,7 @@ import torch.nn as nn
 import torch.distributed as dist
 from typing import Optional, Dict, Any, Tuple
 from dataclasses import dataclass
+from arc.config import default_checkpoint_dir
 import os
 import warnings
 
@@ -32,7 +33,7 @@ class DDPConfig:
     coordinator_rank: int = 0
     barrier_timeout_seconds: float = 300.0
 
-    checkpoint_dir: str = "/tmp/arc_ddp_checkpoints"
+    checkpoint_dir: str = default_checkpoint_dir("ddp_checkpoints")
     save_to_disk: bool = True
 
 class DDPRollback:

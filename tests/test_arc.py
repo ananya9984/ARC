@@ -125,25 +125,37 @@ class TestWeightRollback:
     def test_rollback_restores_weights(self, simple_model):
         """Test that rollback actually restores weights."""
         from arc.intervention import WeightRollback, RollbackConfig
-        
+
         config = RollbackConfig(checkpoint_frequency=1, loss_explosion_threshold=10.0)
         optimizer = torch.optim.Adam(simple_model.parameters())
         rollback = WeightRollback(simple_model, optimizer, config, verbose=False)
-        
-        # Save initial weights
+
+        # Save initial weights before any steps
         initial_weights = simple_model[0].weight.data.clone()
-        
-        # Modify weights
+
+        # Step 1: save a checkpoint with CLEAN weights
+        rollback.step(torch.tensor(1.0))
+
+        # Step 2: corrupt weights AFTER the checkpoint is saved
         with torch.no_grad():
             simple_model[0].weight.data.fill_(999.0)
-        
-        # Trigger rollback with high loss
-        rollback.step(torch.tensor(1.0))  # Save checkpoint
-        action = rollback.step(torch.tensor(100.0))  # Trigger rollback
-        
-        if action.rolled_back:
-            # Weights should be restored
-            assert not torch.allclose(simple_model[0].weight.data, torch.tensor(999.0))
+
+        # Step 3: trigger rollback with an explosive loss
+        action = rollback.step(torch.tensor(100.0))
+
+        # Step 4: rollback MUST have fired — assert unconditionally
+        assert action.rolled_back, "Expected rollback to trigger but it did not"
+
+        # Step 5: weights must no longer be the corrupted value
+        assert not torch.allclose(
+            simple_model[0].weight.data,
+            torch.full_like(simple_model[0].weight.data, 999.0)
+        ), "Weights were not restored — still showing corrupted 999.0 values"
+
+        # Step 6: weights must be back to the clean checkpoint values
+        assert torch.allclose(
+            simple_model[0].weight.data, initial_weights, atol=1e-5
+        ), "Weights were not restored to the pre-corruption checkpoint values"
 
 
 # =============================================================================

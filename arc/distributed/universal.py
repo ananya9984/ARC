@@ -21,6 +21,7 @@ import torch.nn as nn
 import torch.distributed as dist
 from typing import Optional, Dict, Any, List, Tuple, Union
 from dataclasses import dataclass, field
+from arc.config import default_checkpoint_dir
 import os
 import time
 import warnings
@@ -42,7 +43,7 @@ class UniversalDDPConfig:
     allow_single_device_fallback: bool = True
     allow_cpu_fallback: bool = True
 
-    checkpoint_dir: str = "/tmp/arc_universal_checkpoints"
+    checkpoint_dir: str = default_checkpoint_dir("universal_checkpoints")
     use_quantized_checkpoints: bool = True
 
     auto_detect_backend: bool = True

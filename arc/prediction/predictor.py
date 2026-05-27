@@ -16,6 +16,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with ARC. If not, see <https://www.gnu.org/licenses/>.
 
+import pickle
+import warnings
 from dataclasses import dataclass, field
 from typing import Dict, Any, Optional, List, Tuple
 import numpy as np
@@ -143,7 +145,32 @@ class FailurePredictor:
 
     def _load_model(self, path: str) -> TrainingDynamicsPredictor:
 
-        checkpoint = torch.load(path, map_location=self.device)
+        try:
+            checkpoint = torch.load(path, map_location=self.device, weights_only=True)
+        except TypeError:
+            # PyTorch <1.13 doesn't support weights_only; fall back transparently
+            checkpoint = torch.load(path, map_location=self.device)
+        except (pickle.UnpicklingError, RuntimeError) as exc:
+            # Discriminate: pickle.UnpicklingError is always a weights_only rejection;
+            # RuntimeError is only a weights_only rejection if the message says so.
+            # Other RuntimeErrors (file corruption, device mismatch, missing keys, I/O)
+            # must propagate rather than silently fall back to the unsafe path.
+            msg = str(exc).lower()
+            looks_like_weights_only_rejection = (
+                isinstance(exc, pickle.UnpicklingError)
+                or "weights only" in msg
+                or "unsupported global" in msg
+                or "weightsunpicklererror" in msg
+            )
+            if not looks_like_weights_only_rejection:
+                raise
+            warnings.warn(
+                f"Loading {path} with weights_only=False. "
+                "Only do this for checkpoints you produced yourself. "
+                "See SECURITY.md for the checkpoint trust boundary.",
+                stacklevel=2,
+            )
+            checkpoint = torch.load(path, map_location=self.device, weights_only=False)
 
         state_dict = checkpoint.get("model_state_dict", checkpoint)
         n_features = state_dict["input_proj.0.weight"].shape[1]
@@ -235,8 +262,6 @@ class FailurePredictor:
             overall_risk=overall_risk,
             risk_level=risk_level,
         )
-
-        return sequence
 
     def _extract_features(self) -> np.ndarray:
 
