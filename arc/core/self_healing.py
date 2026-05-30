@@ -127,7 +127,7 @@ class SelfHealingArc:
             n_params = sum(p.numel() for _, p in self._param_list)
             print(f"    SelfHealingArc initialized: {n_params/1e6:.2f}M params")
             
-            self.tracker = RecoveryEventTracker()
+        self.tracker = RecoveryEventTracker()
 
     def _get_lr(self) -> float:
         for pg in self.optimizer.param_groups:
@@ -410,6 +410,7 @@ class SelfHealingArc:
                     self._reduce_lr()
                     action.lr_reduced = True
                     self.tracker.log_event(self.step_count,"rollback_triggered")
+                    self.tracker.log_event(self.step_count,"lr_reduced")
                     
                     # Check for persistent failure loop
                     if self._track_rollback():
