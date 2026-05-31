@@ -16,10 +16,10 @@ class RecoveryEventTracker:
  
        self.events.append({
             "timestamp":
-    datetime.now(timezone.utc).isoformat(),
-         "step": step,
-         "event": event,
-         "metadata": metadata
+datetime.now(timezone.utc).isoformat(),
+            "step": step,
+            "event": event,
+            "metadata": metadata
        })
        
     def get_events(self):

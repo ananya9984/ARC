@@ -1,0 +1,21 @@
+from recovery_tracker import RecoveryEventTracker
+from recovery_timeline import plot_recovery_timeline
+
+def main():
+  tracker = RecoveryEventTracker()
+
+  # sample events
+  tracker.log_event(1, "rollback_triggered")
+  tracker.log_event(2, "lr_reduced")
+  tracker.log_event(3,"checkpoint_restored")
+  tracker.log_event(4, "checkpoint_restored")
+
+  print("Recovery Timeline Events:")
+
+  for event in tracker.get_events():
+    print(event)
+
+  plot_recovery_timeline(tracker.get_events())
+
+if __name__=="__main__":
+  main()
