@@ -2,6 +2,12 @@ from recovery_tracker import RecoveryEventTracker
 from recovery_timeline import plot_recovery_timeline
 
 def main():
+  """
+  Demo script for the recovery event tracker and timeline plotter.
+       Creates sample recovery events and generates a timeline plot.
+       run with: python test_timeline.py
+       """
+  
   tracker = RecoveryEventTracker()
 
   # sample events
