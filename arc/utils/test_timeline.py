@@ -5,7 +5,7 @@ def main():
   """
   Demo script for the recovery event tracker and timeline plotter.
        Creates sample recovery events and generates a timeline plot.
-       Run with: python -m arc.utils.test_timeline.py
+       Run with: python -m arc.utils.test_timeline
        """
   
   tracker = RecoveryEventTracker()
@@ -23,5 +23,5 @@ def main():
 
   plot_recovery_timeline(tracker.get_events())
 
-if __name__== "__main__":
+if __name__ == "__main__":
   main()
