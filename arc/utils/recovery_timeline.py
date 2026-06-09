@@ -31,7 +31,7 @@ def plot_recovery_timeline(events, save_path="recovery_timeline.png"):
             y.append(event_types[event_name])
             labels.append(event_name)
         elif event_name is not None:
-            print(f"Warning: Unknown event type'{event_name}'skipped")
+            print(f"Warning: Unknown event type'{event_name}' skipped")
 
     plt.figure(figsize=(10, 4))
     plt.scatter(x, y)
